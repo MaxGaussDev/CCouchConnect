@@ -145,3 +145,4 @@ Here is the list of plans for future releases:
 
 - support for offset and limit in find methods with overload
 - support for custom views manipulation
+- attachments support
