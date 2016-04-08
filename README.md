@@ -1,6 +1,6 @@
 # CCouchConnect
 
-This is a simple PHP CouchDB Curl Wrapper, for baisc CRUD commands in CouchDB.
+This is a simple PHP CouchDB cURL Wrapper, for basic CRUD commands in CouchDB.
 
 #Importing
 
@@ -69,20 +69,24 @@ stdClass Object
 There are a couple of methods to retrieve a document from CouchDB:
 
 ```
-$result = $db->findById('efdf1c6dde49b78bf9834424131037f5'); 
+
 // returns document object by _id
+$result = $db->findById('efdf1c6dde49b78bf9834424131037f5'); 
 
-$result = $db->findBy(array("key" => "value")); 
 // returns an array of document objects filtered by array of keys and their values
+$result = $db->findBy(array("key" => "value")); 
 
-$result = $db->findOneBy(array("key" => "value")); 
 // returns a document object filtered by array of keys and their values
+$result = $db->findOneBy(array("key" => "value")); 
+
+// example with our object above:
+$result = $db->findOneBy(array("name" => "foo", "occupation" => "bar"));
 
 $result = $db->findAll(); 
 // returns an array of all document objects
 
 ```
-findBy() methods do not create a view in the database, the moethods are called over cURL with a temporary view. There will be a view support in the future release.
+findBy() methods do not create a view in the database, the methods are called over cURL with a temporary view. There will be a view support in the future release.
 
 #Updating and Deleting the document:
 
@@ -114,10 +118,10 @@ $result = $db->purge($document);
 
 #Bulk methods:
 
-There are two bulk methods currently. Adding and Deleteing multiple documents in a single request:
+There are two bulk methods currently. Adding and Deleting multiple documents in a single request:
 
 ```
-// some document from the database
+// some documents
 $documentsArray = array($document1, $document2, $document3,...); 
 
 // add multiple new documents
