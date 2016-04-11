@@ -86,7 +86,15 @@ $result = $db->findAll();
 // returns an array of all document objects
 
 ```
-findBy() methods do not create a view in the database, the methods are called over cURL with a temporary view. There will be a view support in the future release.
+findBy() methods create a view in the database (by default the design document is _design/ccouch_views), with the md5 hash for the view name for each search input.
+
+In case you don't want the search data to be cached in design document there are two following methods:
+
+```
+$result = $db->findByNoCache(array("key" => "value"));
+$result = $db->findOneByNoCache(array("key" => "value"));
+``` 
+Both methods will return the data using temporary views.
 
 #Updating and Deleting the document:
 
@@ -150,3 +158,4 @@ Here is the list of plans for future releases:
 - support for offset and limit in find methods with overload
 - support for custom views manipulation
 - attachments support
+- cache cleaning and default search by keyword method

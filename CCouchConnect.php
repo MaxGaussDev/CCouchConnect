@@ -27,6 +27,7 @@ class CCouchConnect {
     protected $username;
     protected $password;
     protected $base_curl;
+    protected $base_design_document;
 
     #region CLASS CONSTRUCTS
 
@@ -44,6 +45,7 @@ class CCouchConnect {
         $this->server = $argument2;
         $this->port = 5984;
         $this->base_curl = 'http://'.$argument2.':5984/'.$argument1.'/';
+        $this->base_design_document = 'ccouch_views';
     }
 
     public function __construct3($argument1, $argument2, $argument3 = 5984) {
@@ -51,6 +53,7 @@ class CCouchConnect {
         $this->server = $argument2;
         $this->port = $argument3;
         $this->base_curl = 'http://'.$argument2.':'.$argument3.'/'.$argument1.'/';
+        $this->base_design_document = 'ccouch_views';
     }
 
     public function __construct5($argument1, $argument2, $argument3 = 5984, $argument4, $argument5) {
@@ -60,6 +63,7 @@ class CCouchConnect {
         $this->username = $argument4;
         $this->password = $argument5;
         $this->base_curl = 'http://'.$argument4.':'.$argument5.'@'.$argument2.':'.$argument3.'/'.$argument1.'/';
+        $this->base_design_document = 'ccouch_views';
     }
 
     #endregion
@@ -148,7 +152,7 @@ class CCouchConnect {
         return $docs_only;
     }
 
-    public function findBy($conditions){
+    public function findByNoCache($conditions){
 
         $keys = array_keys($conditions);
         $values = array_values($conditions);
@@ -156,6 +160,7 @@ class CCouchConnect {
         $view_cmd_head = 'function(doc) {if(';
         $view_cmd_end = '){emit(doc.id, doc);}}';
         $view_cmd_cond = '';
+
         if(count($conditions) > 1){
             for ($index = 0; $index <= count($conditions)-1; $index++){
                 if($index == count($conditions)-1){
@@ -180,7 +185,62 @@ class CCouchConnect {
         return array("total" => $result->total_rows, "documents" => $docs);
     }
 
-    public function findOneBy($conditions){
+    public function findBy($conditions){
+
+        // create md5 for view key
+        $cmd_json_key = md5(json_encode($conditions));
+
+        // check for view results if not existent then check and create view
+        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key;
+        $result = json_decode(shell_exec($cmd));
+        if(!$result->error){
+            return $result;
+        }else{
+            // create function for view
+            $keys = array_keys($conditions);
+            $values = array_values($conditions);
+
+            $view_cmd_head = 'function(doc) {if(';
+            $view_cmd_end = '){emit(doc.id, doc);}}';
+            $view_cmd_cond = '';
+
+            if(count($conditions) > 1){
+                for ($index = 0; $index <= count($conditions)-1; $index++){
+                    if($index == count($conditions)-1){
+                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'"';
+                    }else{
+                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'" && ';
+                    }
+                }
+            }else{
+                $view_cmd_cond .= 'doc.'.$keys[0].' == "'.$values[0].'"';
+            }
+            $view_cmd = $view_cmd_head.''.$view_cmd_cond.''.$view_cmd_end;
+            if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
+                return json_decode(shell_exec($cmd));
+            }else{
+                if(!$this->checkForLocalDesignDocument()){
+                    if($this->createLocalDesignDocument()){
+                        if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
+                            return json_decode(shell_exec($cmd));
+                        }else{
+                            return false;
+                        }
+                    }else{
+                        return false;
+                    }
+                }else{
+                    if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
+                        return json_decode(shell_exec($cmd));
+                    }else{
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    public function findOneByNoCache($conditions){
 
         $keys = array_keys($conditions);
         $values = array_values($conditions);
@@ -204,6 +264,62 @@ class CCouchConnect {
         $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.$this->base_curl.'_temp_view?limit=1 -d \''.json_encode($cmd_json).'\'';
 
         return json_decode(shell_exec($cmd))->rows[0]->value;
+    }
+
+    public function findOneBy($conditions){
+
+        // create md5 for view key
+        $cmd_json_key = md5(json_encode($conditions));
+
+        // check for view results if not existent then check and create view
+        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key.'?limit=1';
+        $result = json_decode(shell_exec($cmd))->rows[0]->value;
+
+        if(!$result->error){
+            return $result;
+        }else{
+            // create function for view
+            $keys = array_keys($conditions);
+            $values = array_values($conditions);
+
+            $view_cmd_head = 'function(doc) {if(';
+            $view_cmd_end = '){emit(doc.id, doc);}}';
+            $view_cmd_cond = '';
+
+            if(count($conditions) > 1){
+                for ($index = 0; $index <= count($conditions)-1; $index++){
+                    if($index == count($conditions)-1){
+                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'"';
+                    }else{
+                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'" && ';
+                    }
+                }
+            }else{
+                $view_cmd_cond .= 'doc.'.$keys[0].' == "'.$values[0].'"';
+            }
+            $view_cmd = $view_cmd_head.''.$view_cmd_cond.''.$view_cmd_end;
+            if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
+                return json_decode(shell_exec($cmd));
+            }else{
+                if(!$this->checkForLocalDesignDocument()){
+                    if($this->createLocalDesignDocument()){
+                        if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
+                            return json_decode(shell_exec($cmd))->rows[0]->value;
+                        }else{
+                            return false;
+                        }
+                    }else{
+                        return false;
+                    }
+                }else{
+                    if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
+                        return json_decode(shell_exec($cmd))->rows[0]->value;
+                    }else{
+                        return false;
+                    }
+                }
+            }
+        }
     }
 
     public function addNew($document){
@@ -258,5 +374,57 @@ class CCouchConnect {
 
     #endregion
 
+    #region INTERNAL METHODS
+
+    protected function checkForLocalDesignDocument(){
+        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document;
+        if(!json_decode(shell_exec($cmd))->error){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    protected function createLocalDesignDocument(){
+            $desing_doc = array(
+                "_id" => "_design/{$this->base_design_document}",
+                "views" => array(
+                    "search_all" => array(
+                        "map" => "function(doc) { Object.keys(doc).forEach(function(key) { if(doc[key]) emit(doc[key], null);  }) };"
+                    )
+                )
+            );
+            if(!$this->addNew($desing_doc)->error){
+                return true;
+            }else{
+                return false;
+            }
+    }
+
+    protected function checkForViewInLocalDesignDocument($view_name){
+        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document;
+        $doc_views = json_decode(shell_exec($cmd));
+        if($doc_views->views->$view_name){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    protected function addViewToLocalDesignDocument($view_name, $code){
+            $vdoc = $this->findById('_design/'.$this->base_design_document);
+            // create new custom view and add to the design document
+            $vdoc->views->$view_name = array(
+                "map" => $code
+            );
+            $vdoc->updatedAt = new DateTime('now');
+            if($this->save($vdoc)->error){
+                return false;
+            }else{
+                return true;
+            }
+    }
+
+    #endregion
 
 }
