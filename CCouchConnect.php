@@ -3,7 +3,7 @@
  * \brief   
  * \details     
  * @author  Mario Pastuović
- * @version 1.0
+ * @version 0.5.1
  * \date 05.04.16.
  * \copyright
  *     This code and information is provided "as is" without warranty of
