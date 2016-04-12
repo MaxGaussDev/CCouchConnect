@@ -4,6 +4,11 @@ This is a simple PHP CouchDB cURL Wrapper, for basic CRUD commands in CouchDB.
 
 #Importing
 
+Using composer:
+```
+composer require maxgaussdev/ccouchconnect
+```
+
 To import the class all you need to do is include the CCouchConnect.php file and use the namespace:
 
 ```
