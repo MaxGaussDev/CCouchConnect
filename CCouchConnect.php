@@ -3,8 +3,8 @@
  * \brief   
  * \details     
  * @author  Mario Pastuović
- * @version 0.5.1
- * \date 05.04.16.
+ * @version 0.5.2
+ * \date 14.04.16.
  * \copyright
  *     This code and information is provided "as is" without warranty of
  *     any kind, either expressed or implied, including but not limited to
@@ -12,7 +12,6 @@
  *     particular purpose.
  *     \par
  *     Copyright (c) Poslovanje 2 d.o.o. All rights reserved
- * Created by PhpStorm.
  */
 
 namespace CCouch\Database;
@@ -123,28 +122,28 @@ class CCouchConnect {
     #endregion
 
     public function dbInfo(){
-        $cmd = 'curl -X GET '.rtrim($this->base_curl, '/');
-        return json_decode(shell_exec($cmd));
+        $url = rtrim($this->base_curl, '/');
+        return $this->runCURLRequestWithData('GET', $url, null);
     }
 
     public function listDocuments(){
-        $cmd = 'curl -X GET '.$this->base_curl.'_all_docs';
-        return json_decode(shell_exec($cmd))->rows;
+        $url = $this->base_curl.'_all_docs';
+        return $this->runCURLRequestWithData('GET', $url, null)->rows;
     }
 
     public function listChanges(){
-        $cmd = 'curl -X GET '.$this->base_curl.'_changes';
-        return json_decode(shell_exec($cmd))->results;
+        $url = $this->base_curl.'_changes';
+        return $this->runCURLRequestWithData('GET', $url, null);
     }
 
     public function findById($id){
-        $cmd = 'curl -X GET '.$this->base_curl.''.$id;
-        return json_decode(shell_exec($cmd));
+        $url = $this->base_curl.''.$id;
+        return $this->runCURLRequestWithData('GET', $url, null);
     }
 
     public function findAll(){
-        $cmd = 'curl -X GET '.$this->base_curl.'_all_docs?include_docs=true';
-        $result = json_decode(shell_exec($cmd))->rows;
+        $url = $this->base_curl.'_all_docs?include_docs=true';
+        $result = $this->runCURLRequestWithData('GET', $url, null)->rows;
         $docs_only = array();
         foreach ($result as $r_doc){
             array_push($docs_only, $r_doc->doc);
@@ -154,29 +153,12 @@ class CCouchConnect {
 
     public function findByNoCache($conditions){
 
-        $keys = array_keys($conditions);
-        $values = array_values($conditions);
-
-        $view_cmd_head = 'function(doc) {if(';
-        $view_cmd_end = '){emit(doc.id, doc);}}';
-        $view_cmd_cond = '';
-
-        if(count($conditions) > 1){
-            for ($index = 0; $index <= count($conditions)-1; $index++){
-                if($index == count($conditions)-1){
-                    $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'"';
-                }else{
-                    $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'" && ';
-                }
-            }
-        }else{
-           $view_cmd_cond .= 'doc.'.$keys[0].' == "'.$values[0].'"';
-        }
-        $view_cmd = $view_cmd_head.''.$view_cmd_cond.''.$view_cmd_end;
+        $view_cmd = $this->createViewCodeFromSearchConditionsArray($conditions);
         $cmd_json = array("map" => $view_cmd);
-        $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.$this->base_curl.'_temp_view -d \''.json_encode($cmd_json).'\'';
 
-        $result = json_decode(shell_exec($cmd));
+        $url = $this->base_curl.'_temp_view';
+        $result = $this->runCURLRequestWithData('POST', $url, json_encode($cmd_json));
+
         $docs = array();
         foreach ($result->rows as $row){
             $doc_data = $row->value;
@@ -190,39 +172,19 @@ class CCouchConnect {
         // create md5 for view key
         $cmd_json_key = md5(json_encode($conditions));
 
-        // check for view results if not existent then check and create view
-        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key;
-        $result = json_decode(shell_exec($cmd));
+        $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key;
+        $result = $this->runCURLRequestWithData('GET', $url, null);
         if(!$result->error){
             return $result;
         }else{
-            // create function for view
-            $keys = array_keys($conditions);
-            $values = array_values($conditions);
-
-            $view_cmd_head = 'function(doc) {if(';
-            $view_cmd_end = '){emit(doc.id, doc);}}';
-            $view_cmd_cond = '';
-
-            if(count($conditions) > 1){
-                for ($index = 0; $index <= count($conditions)-1; $index++){
-                    if($index == count($conditions)-1){
-                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'"';
-                    }else{
-                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'" && ';
-                    }
-                }
-            }else{
-                $view_cmd_cond .= 'doc.'.$keys[0].' == "'.$values[0].'"';
-            }
-            $view_cmd = $view_cmd_head.''.$view_cmd_cond.''.$view_cmd_end;
+            $view_cmd = $this->createViewCodeFromSearchConditionsArray($conditions);
             if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
-                return json_decode(shell_exec($cmd));
+                return $this->runCURLRequestWithData('GET', $url, null);
             }else{
                 if(!$this->checkForLocalDesignDocument()){
                     if($this->createLocalDesignDocument()){
                         if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
-                            return json_decode(shell_exec($cmd));
+                            return $this->runCURLRequestWithData('GET', $url, null);
                         }else{
                             return false;
                         }
@@ -231,7 +193,7 @@ class CCouchConnect {
                     }
                 }else{
                     if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
-                        return json_decode(shell_exec($cmd));
+                        return $this->runCURLRequestWithData('GET', $url, null);
                     }else{
                         return false;
                     }
@@ -242,28 +204,10 @@ class CCouchConnect {
 
     public function findOneByNoCache($conditions){
 
-        $keys = array_keys($conditions);
-        $values = array_values($conditions);
-
-        $view_cmd_head = 'function(doc) {if(';
-        $view_cmd_end = '){emit(doc.id, doc);}}';
-        $view_cmd_cond = '';
-        if(count($conditions) > 1){
-            for ($index = 0; $index <= count($conditions)-1; $index++){
-                if($index == count($conditions)-1){
-                    $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'"';
-                }else{
-                    $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'" && ';
-                }
-            }
-        }else{
-            $view_cmd_cond .= 'doc.'.$keys[0].' == "'.$values[0].'"';
-        }
-        $view_cmd = $view_cmd_head.''.$view_cmd_cond.''.$view_cmd_end;
+        $view_cmd = $this->createViewCodeFromSearchConditionsArray($conditions);
         $cmd_json = array("map" => $view_cmd);
-        $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.$this->base_curl.'_temp_view?limit=1 -d \''.json_encode($cmd_json).'\'';
-
-        return json_decode(shell_exec($cmd))->rows[0]->value;
+        $url = $this->base_curl.'_temp_view?limit=1';
+        return $this->runCURLRequestWithData('POST', $url, json_encode($cmd_json))->rows[0];
     }
 
     public function findOneBy($conditions){
@@ -271,40 +215,20 @@ class CCouchConnect {
         // create md5 for view key
         $cmd_json_key = md5(json_encode($conditions));
 
-        // check for view results if not existent then check and create view
-        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key.'?limit=1';
-        $result = json_decode(shell_exec($cmd))->rows[0]->value;
+        $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key.'?limit=1';
+        $result = $this->runCURLRequestWithData('GET', $url, null)->rows[0]->value;
 
         if(!$result->error){
             return $result;
         }else{
-            // create function for view
-            $keys = array_keys($conditions);
-            $values = array_values($conditions);
-
-            $view_cmd_head = 'function(doc) {if(';
-            $view_cmd_end = '){emit(doc.id, doc);}}';
-            $view_cmd_cond = '';
-
-            if(count($conditions) > 1){
-                for ($index = 0; $index <= count($conditions)-1; $index++){
-                    if($index == count($conditions)-1){
-                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'"';
-                    }else{
-                        $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'" && ';
-                    }
-                }
-            }else{
-                $view_cmd_cond .= 'doc.'.$keys[0].' == "'.$values[0].'"';
-            }
-            $view_cmd = $view_cmd_head.''.$view_cmd_cond.''.$view_cmd_end;
+            $view_cmd = $this->createViewCodeFromSearchConditionsArray($conditions);
             if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
-                return json_decode(shell_exec($cmd));
+                return $this->runCURLRequestWithData('GET', $url, null);
             }else{
                 if(!$this->checkForLocalDesignDocument()){
                     if($this->createLocalDesignDocument()){
                         if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
-                            return json_decode(shell_exec($cmd))->rows[0]->value;
+                            return $this->runCURLRequestWithData('GET', $url, null)->rows[0]->value;
                         }else{
                             return false;
                         }
@@ -313,7 +237,7 @@ class CCouchConnect {
                     }
                 }else{
                     if($this->addViewToLocalDesignDocument($cmd_json_key, $view_cmd)){
-                        return json_decode(shell_exec($cmd))->rows[0]->value;
+                        return $this->runCURLRequestWithData('GET', $url, null)->rows[0]->value;
                     }else{
                         return false;
                     }
@@ -325,28 +249,44 @@ class CCouchConnect {
     public function addNew($document){
         $document['createdAt']  = new DateTime("now");
         $document['updatedAt']  = new DateTime("now");
-        $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.rtrim($this->base_curl, '/').' -d \''.json_encode($document).'\'';
-        return json_decode(shell_exec($cmd));
+
+        $url = rtrim($this->base_curl, '/');
+        return $this->runCURLRequestWithData('POST', $url, json_encode($document));
     }
 
     public function save($document){
         $document->updatedAt  = new DateTime("now");
-        $cmd = 'curl -H \'Content-Type: application/json\' -X PUT '.$this->base_curl.''.$document->_id.' -d \''.json_encode($document).'\'';
-        return json_decode(shell_exec($cmd));
+        $url = $this->base_curl.''.$document->_id;
+        return $this->runCURLRequestWithData('PUT', $url, json_encode($document));
     }
 
     public function delete($document){
         $document->_deleted  = true;
-        $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.rtrim($this->base_curl, '/').' -d \''.json_encode($document).'\'';
-        return json_decode(shell_exec($cmd));
+        $url = rtrim($this->base_curl, '/');
+        return $this->runCURLRequestWithData('POST', $url, json_encode($document));
     }
 
     public function purge($document){
         $doc_id = $document->_id;
         $doc_rev = $document->_rev;
         $purge_info = array($doc_id => array($doc_rev));
-        $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.$this->base_curl.'_purge -d \''.json_encode($purge_info).'\'';
-        return json_decode(shell_exec($cmd));
+        $url = $this->base_curl.'_purge';
+        return $this->runCURLRequestWithData('POST', $url, json_encode($purge_info));
+    }
+
+    public function search($keyword){
+
+        $curl = curl_init();
+        curl_setopt($curl,CURLOPT_URL,$this->base_curl.'_design/'.$this->base_design_document.'/_view/search_all?key=%22'.$keyword.'%22&include_docs=true');
+        curl_setopt($curl,CURLOPT_RETURNTRANSFER,true);
+        $result = json_decode(curl_exec($curl));
+        curl_close($curl);
+
+        $docs = array();
+        foreach($result->rows as $row){
+            array_push($docs, $row->doc);
+        }
+        return $docs;
     }
 
     #region BULK METHODS
@@ -358,8 +298,8 @@ class CCouchConnect {
             if(!$doc->updatedAt){$doc["updatedAt"] = new DateTime("now");}else{$doc->updatedAt = new DateTime("now");}
             array_push($docs_list, $doc);
         }
-        $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.$this->base_curl.'_bulk_docs -d \''.json_encode(array("docs" => $docs_list)).'\'';
-        return json_decode(shell_exec($cmd));
+        $url = $this->base_curl.'_bulk_docs';
+        return $this->runCURLRequestWithData('POST', $url, json_encode(array("docs" => $docs_list)));
     }
 
     public function deleteBulk($documents){
@@ -368,8 +308,7 @@ class CCouchConnect {
             $doc->_deleted  = true;
             array_push($docs_list, $doc);
         }
-        $cmd = 'curl -H \'Content-Type: application/json\' -X POST '.$this->base_curl.'_bulk_docs -d \''.json_encode(array("docs" => $docs_list)).'\'';
-        return json_decode(shell_exec($cmd));
+        return $this->saveBulk($docs_list);
     }
 
     #endregion
@@ -377,8 +316,8 @@ class CCouchConnect {
     #region INTERNAL METHODS
 
     protected function checkForLocalDesignDocument(){
-        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document;
-        if(!json_decode(shell_exec($cmd))->error){
+        $url = $this->base_curl.'_design/'.$this->base_design_document;
+        if(!$this->runCURLRequestWithData('GET', $url, null)->error){
             return true;
         }else{
             return false;
@@ -402,8 +341,8 @@ class CCouchConnect {
     }
 
     protected function checkForViewInLocalDesignDocument($view_name){
-        $cmd = 'curl -X GET '.$this->base_curl.'_design/'.$this->base_design_document;
-        $doc_views = json_decode(shell_exec($cmd));
+        $url = $this->base_curl.'_design/'.$this->base_design_document;
+        $doc_views = $this->runCURLRequestWithData('GET', $url, null);
         if($doc_views->views->$view_name){
             return true;
         }else{
@@ -413,7 +352,6 @@ class CCouchConnect {
 
     protected function addViewToLocalDesignDocument($view_name, $code){
             $vdoc = $this->findById('_design/'.$this->base_design_document);
-            // create new custom view and add to the design document
             $vdoc->views->$view_name = array(
                 "map" => $code
             );
@@ -425,6 +363,49 @@ class CCouchConnect {
             }
     }
 
+    protected function createViewCodeFromSearchConditionsArray($conditions){
+        // create javascript function for view
+        $keys = array_keys($conditions);
+        $values = array_values($conditions);
+
+        $view_cmd_head = 'function(doc) {if(';
+        $view_cmd_end = '){emit(doc.id, doc);}}';
+        $view_cmd_cond = '';
+
+        if(count($conditions) > 1){
+            for ($index = 0; $index <= count($conditions)-1; $index++){
+                if($index == count($conditions)-1){
+                    $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'"';
+                }else{
+                    $view_cmd_cond .= 'doc.'.$keys[$index].' == "'.$values[$index].'" && ';
+                }
+            }
+        }else{
+            $view_cmd_cond .= 'doc.'.$keys[0].' == "'.$values[0].'"';
+        }
+        return  $view_cmd_head.''.$view_cmd_cond.''.$view_cmd_end;
+    }
+
+    protected function runCURLRequestWithData($method = 'GET', $url, $data = null){
+
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
+
+        if($data != null){
+                curl_setopt($curl, CURLOPT_HTTPHEADER, array("Content-type: application/json"));
+                curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+            }
+
+        curl_setopt($curl, CURLOPT_HEADER, false);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+        $result = curl_exec($curl);
+        $response = json_decode($result);
+        curl_close($curl);
+        return $response;
+    }
+
     #endregion
+
 
 }
