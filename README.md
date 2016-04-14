@@ -188,6 +188,12 @@ $result = $db->listDocuments();
 
 // get ids of changed documents
 $result = $db->listChanges();
+
+// get list of all databases
+$result = $db->listDatabases();
+
+// delete database
+$result = $db->deleteDatabases();
 ```
 
 #Future Releases:
