@@ -5,7 +5,7 @@
     "type": "library",
     "description": "A shell cURL wrapper for CouchDB on PHP",
     "version" : "0.5.2",
-    "license": "GNU",
+    "license": "GNU GPL",
     "require": {
         "php": ">=5.3.0"
     }
