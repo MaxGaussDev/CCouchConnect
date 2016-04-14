@@ -193,7 +193,7 @@ $result = $db->listChanges();
 $result = $db->listDatabases();
 
 // delete database
-$result = $db->deleteDatabases();
+$result = $db->deleteDatabase();
 ```
 
 #Future Releases:
