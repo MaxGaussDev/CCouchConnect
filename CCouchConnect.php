@@ -3,8 +3,8 @@
  * \brief   
  * \details     
  * @author  Mario Pastuović
- * @version 0.5.2
- * \date 14.04.16.
+ * @version 0.5.3
+ * \date 05.04.16.
  * \copyright
  *     This code and information is provided "as is" without warranty of
  *     any kind, either expressed or implied, including but not limited to
@@ -12,6 +12,7 @@
  *     particular purpose.
  *     \par
  *     Copyright (c) Poslovanje 2 d.o.o. All rights reserved
+ * Created by PhpStorm.
  */
 
 namespace CCouch\Database;
@@ -119,7 +120,68 @@ class CCouchConnect {
         $this->password = $password;
     }
 
+
+
     #endregion
+
+    #region DATABASE METHODS
+
+    public function createDatabase(){
+        $this->base_curl = 'http://';
+
+        if($this->username != null && $this->password != null){
+            $this->base_curl .= $this->username.':'.$this->password.'@';
+        }
+
+        $this->base_curl .= $this->server;
+
+        if($this->port != null){
+            $this->base_curl .= ':'.$this->port.'/'.$this->database.'/';
+        }else{
+            $this->base_curl .= ':5984/'.$this->database.'/';
+        }
+        $this->base_design_document = 'ccouch_views';
+        $url = rtrim($this->base_curl, '/');
+        $create_result = $this->runCURLRequestWithData('PUT', $url, null);
+        if(!$create_result->error){
+            if($this->createLocalDesignDocument()){
+                return $create_result;
+            }else{
+                return $create_result;
+            }
+        }else{
+            //if there is an error, it will be returned
+            return $create_result;
+        }
+    }
+
+    public function listDatabases(){
+        $url = str_replace('/'.$this->database, '',$this->base_curl).'_all_dbs';
+        return $this->runCURLRequestWithData('GET', $url, null);
+    }
+
+    public function deleteDatabase(){
+        $this->base_curl = 'http://';
+
+        if($this->username != null && $this->password != null){
+            $this->base_curl .= $this->username.':'.$this->password.'@';
+        }
+
+        $this->base_curl .= $this->server;
+
+        if($this->port != null){
+            $this->base_curl .= ':'.$this->port.'/'.$this->database.'/';
+        }else{
+            $this->base_curl .= ':5984/'.$this->database.'/';
+        }
+        $this->base_design_document = 'ccouch_views';
+        $url = rtrim($this->base_curl, '/');
+        return $this->runCURLRequestWithData('DELETE', $url, null);
+    }
+
+    #endregion
+
+    #region DB QUERY METHODS
 
     public function dbInfo(){
         $url = rtrim($this->base_curl, '/');
@@ -288,6 +350,8 @@ class CCouchConnect {
         }
         return $docs;
     }
+
+    #endregion
 
     #region BULK METHODS
 

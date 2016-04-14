@@ -27,9 +27,38 @@ $db = new Database('database', 'server', 5984, 'username', 'password');
 ```
 By default the port will be set to the usual 5984 on CouchDB. 
 
+It is recommended that you use already existing database, but in case you need to create one with PHP, there is a createDatabase() method, that can be used in several ways:
+
+```
+// declare a new database that does not exist on the server
+$db = new Database('database', 'server');
+
+// we use createDatabase() method to create it
+if(!$db->createDatabase->error){
+	// success
+}else{
+	// fail
+}
+
+// this can also be set using empty constructor and usual setters
+$db = new Database();
+
+$db->setDatabase('dbname');
+$db->setServer('localhost');
+
+if(!$db->createDatabase->error){
+	// success
+}else{
+	// fail
+}
+```
+If not set in advance, the port will be defined by the default 5984.
+
 #How to use
 
-There are a couple of methods that will allow you to do the basic CRUD for objects. The return values by default will be php's stdObjects.
+Public methods for database queries will return stdObjects as result, use print_r() for details if needed. 
+
+There are a couple of methods that will allow you to do the basic CRUD for objects. The return values by default will be php's stdObjects. 
 
 The Database info:
 ```
@@ -71,7 +100,7 @@ stdClass Object
 ```
 #Getting the document:
 
-There are a couple of methods to retrieve a document from CouchDB:
+There are a couple of methods to retrieve a document from CouchDB.
 
 ```
 
@@ -168,4 +197,6 @@ Here is the list of plans for future releases:
 - support for offset and limit in find methods with overload
 - support for custom views manipulation
 - attachments support
-- cache cleaning and default search by keyword method
+- cache cleaning
+- documentation update
+
