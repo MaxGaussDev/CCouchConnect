@@ -101,6 +101,11 @@ $result = $db->findOneByNoCache(array("key" => "value"));
 ``` 
 Both methods will return the data using temporary views.
 
+In case you wish to search for documents with a keyword value in any non-specified parameter, there is a simple search method implemented:
+```
+$result = $db->search('keyword');
+```
+
 #Updating and Deleting the document:
 
 Updating a document is simple, you just pass an object as an argument to save() method:
