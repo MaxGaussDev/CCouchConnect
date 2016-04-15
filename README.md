@@ -134,6 +134,15 @@ In case you wish to search for documents with a keyword value in any non-specifi
 ```
 $result = $db->search('keyword');
 ```
+#Find documents with limit and offset:
+
+Limit and offset can be used in the following way and are optional arguments:
+
+```
+$result = $db->findAll($limit, $offset);
+$result = $db->findByNoCache(array("key" => "value"),$limit, $offset);
+$result = $db->findBy(array("key" => "value"),$limit, $offset); 
+```
 
 #Updating and Deleting the document:
 
@@ -200,7 +209,6 @@ $result = $db->deleteDatabase();
 
 Here is the list of plans for future releases:
 
-- support for offset and limit in find methods with overload
 - support for custom views manipulation
 - attachments support
 - cache cleaning

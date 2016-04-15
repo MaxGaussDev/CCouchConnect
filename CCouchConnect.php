@@ -3,7 +3,7 @@
  * \brief   
  * \details     
  * @author  Mario Pastuović
- * @version 0.5.3
+ * @version 0.5.4
  * \date 05.04.16.
  * \copyright
  *     This code and information is provided "as is" without warranty of
@@ -204,7 +204,21 @@ class CCouchConnect {
     }
 
     public function findAll(){
-        $url = $this->base_curl.'_all_docs?include_docs=true';
+
+        $get_arguments = func_get_args();
+        $number_of_arguments = func_num_args();
+
+        switch($number_of_arguments){
+            case 1:
+                $url = $this->base_curl.'_all_docs?include_docs=true&limit='.$get_arguments[0];
+                break;
+            case 2:
+                $url = $this->base_curl.'_all_docs?include_docs=true&limit='.$get_arguments[0].'&skip='.$get_arguments[1];
+                break;
+            default:
+                $url = $this->base_curl.'_all_docs?include_docs=true';
+                break;
+        }
         $result = $this->runCURLRequestWithData('GET', $url, null)->rows;
         $docs_only = array();
         foreach ($result as $r_doc){
@@ -215,10 +229,23 @@ class CCouchConnect {
 
     public function findByNoCache($conditions){
 
+        $get_arguments = func_get_args();
+        $number_of_arguments = func_num_args();
+
+        switch($number_of_arguments){
+            case 2:
+                $url = $this->base_curl.'_temp_view?limit='.$get_arguments[1];
+                break;
+            case 3:
+                $url = $this->base_curl.'_temp_view?limit='.$get_arguments[1].'&skip='.$get_arguments[2];
+                break;
+            default:
+                $url = $this->base_curl.'_temp_view';
+                break;
+        }
+
         $view_cmd = $this->createViewCodeFromSearchConditionsArray($conditions);
         $cmd_json = array("map" => $view_cmd);
-
-        $url = $this->base_curl.'_temp_view';
         $result = $this->runCURLRequestWithData('POST', $url, json_encode($cmd_json));
 
         $docs = array();
@@ -231,10 +258,24 @@ class CCouchConnect {
 
     public function findBy($conditions){
 
+        $get_arguments = func_get_args();
+        $number_of_arguments = func_num_args();
+
         // create md5 for view key
         $cmd_json_key = md5(json_encode($conditions));
 
-        $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key;
+        switch($number_of_arguments){
+            case 2:
+                $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key.'?limit='.$get_arguments[1];
+                break;
+            case 3:
+                $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key.'?limit='.$get_arguments[1].'&skip='.$get_arguments[2];
+                break;
+            default:
+                $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/'.$cmd_json_key;
+                break;
+        }
+
         $result = $this->runCURLRequestWithData('GET', $url, null);
         if(!$result->error){
             return $result;
@@ -338,8 +379,23 @@ class CCouchConnect {
 
     public function search($keyword){
 
+        $get_arguments = func_get_args();
+        $number_of_arguments = func_num_args();
+
+        switch($number_of_arguments){
+            case 2:
+                $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/search_all?key=%22'.$keyword.'%22&include_docs=true&limit='.$get_arguments[1];
+                break;
+            case 3:
+                $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/search_all?key=%22'.$keyword.'%22&include_docs=true&limit='.$get_arguments[1].'&skip='.$get_arguments[2];
+                break;
+            default:
+                $url = $this->base_curl.'_design/'.$this->base_design_document.'/_view/search_all?key=%22'.$keyword.'%22&include_docs=true';
+                break;
+        }
+
         $curl = curl_init();
-        curl_setopt($curl,CURLOPT_URL,$this->base_curl.'_design/'.$this->base_design_document.'/_view/search_all?key=%22'.$keyword.'%22&include_docs=true');
+        curl_setopt($curl,CURLOPT_URL,$url);
         curl_setopt($curl,CURLOPT_RETURNTRANSFER,true);
         $result = json_decode(curl_exec($curl));
         curl_close($curl);
